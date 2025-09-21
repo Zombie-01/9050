@@ -21,6 +21,8 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'орлого' | 'зарлага'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>(''); // YYYY-MM-DD
+  const [endDate, setEndDate] = useState<string>('');   // YYYY-MM-DD
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -86,14 +88,18 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
                          transaction.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || transaction.type === filterType;
     const matchesCategory = filterCategory === 'all' || transaction.category === filterCategory;
+    // Date range filter (inclusive). If startDate/endDate empty => ignore that bound.
+    const txDate = new Date(transaction.date + 'T00:00:00');
+    const startOk = !startDate || txDate >= new Date(startDate + 'T00:00:00');
+    const endOk = !endDate || txDate <= new Date(endDate + 'T23:59:59');
     
-    return matchesSearch && matchesType && matchesCategory;
+    return matchesSearch && matchesType && matchesCategory && startOk && endOk;
   });
 
   const allCategories = [...new Set(transactions.map(t => t.category))];
 
   return (
-    <div className="p-6 max-w-7xl mt-12 mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Гүйлгээний удирдлага</h1>
         <button
@@ -202,7 +208,7 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
             <input
@@ -235,14 +241,32 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
             ))}
           </select>
 
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-600">
-              {filteredTransactions.length} гүйлгээ
-            </span>
+          {/* Date range */}
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Эхлэх огноо"
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Дуусах огноо"
+            />
           </div>
-        </div>
-      </div>
+
+           <div className="flex items-center gap-2">
+             <Filter className="w-4 h-4 text-gray-400" />
+             <span className="text-sm text-gray-600">
+               {filteredTransactions.length} гүйлгээ
+             </span>
+           </div>
+         </div>
+       </div>
 
       {/* Transaction List */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">

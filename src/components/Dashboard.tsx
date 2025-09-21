@@ -6,43 +6,84 @@ import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
 interface DashboardProps {
   transactions: Transaction[];
+  period?: '1d' | '7d' | '1m' | '1y';
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
+const Dashboard: React.FC<DashboardProps> = ({ transactions, period = '7d' }) => {
+  // Determine reference "now": use latest transaction date if it's newer than real now
+  const getLatestTransactionDate = () => {
+    if (!transactions || transactions.length === 0) return null;
+    return transactions.reduce((max, t) => (t.date > max ? t.date : max), transactions[0].date);
+  };
+  const latestDateStr = getLatestTransactionDate();
+  // referenceNow is end of latest transaction day (so future-dated txns are included)
+  const referenceNow = latestDateStr ? new Date(latestDateStr + 'T23:59:59') : new Date();
+
+  // compute start date according to selected period using referenceNow
+  const getStartDate = (p: string, ref: Date) => {
+    const d = new Date(ref);
+    d.setHours(0, 0, 0, 0);
+    switch (p) {
+      case '1d':
+        d.setDate(ref.getDate() - 1);
+        break;
+      case '7d':
+        d.setDate(ref.getDate() - 6); // last 7 days including ref date
+        break;
+      case '1m':
+        d.setMonth(ref.getMonth() - 1);
+        break;
+      case '1y':
+        d.setFullYear(ref.getFullYear() - 1);
+        break;
+      default:
+        d.setMonth(ref.getMonth() - 1);
+    }
+    return d;
+  };
+
+  const startDate = getStartDate(period, referenceNow);
+  const filteredTransactions = transactions.filter(t => {
+    if (!t.date) return false;
+    const td = new Date(t.date + 'T00:00:00'); // normalize to start of day
+    return td >= startDate && td <= referenceNow;
+  });
+
+  // helper to show human label for period
+  const periodLabel = period === '1d' ? '1 өдөр' : period === '7d' ? '7 хоног' : period === '1m' ? '1 сар' : '1 жил';
+
   // Calculate totals
-  const totalIncome = transactions
+  const totalIncome = filteredTransactions
     .filter(t => t.type === 'орлого')
     .reduce((sum, t) => sum + t.amount, 0);
   
-  const totalExpense = transactions
+  const totalExpense = filteredTransactions
     .filter(t => t.type === 'зарлага')
     .reduce((sum, t) => sum + t.amount, 0);
   
   const netProfit = totalIncome - totalExpense;
 
   // Prepare monthly data
-  const monthlyData = transactions.reduce((acc, transaction) => {
-    const month = new Date(transaction.date).toLocaleDateString('mn-MN', { month: 'short', year: '2-digit' });
-    const existing = acc.find(item => item.month === month);
-    
+  const monthlyData = filteredTransactions.reduce((acc, transaction) => {
+    const monthKey = transaction.date.slice(0, 7); // YYYY-MM
+    const monthLabel = new Date(transaction.date + 'T00:00:00').toLocaleDateString('mn-MN', { month: 'short', year: '2-digit' });
+    const existing = acc.find(item => item.monthKey === monthKey);
     if (existing) {
-      if (transaction.type === 'орлого') {
-        existing.орлого += transaction.amount;
-      } else {
-        existing.зарлага += transaction.amount;
-      }
+      if (transaction.type === 'орлого') existing.орлого += transaction.amount;
+      else existing.зарлага += transaction.amount;
     } else {
       acc.push({
-        month,
+        monthKey,
+        month: monthLabel,
         орлого: transaction.type === 'орлого' ? transaction.amount : 0,
         зарлага: transaction.type === 'зарлага' ? transaction.amount : 0
       });
     }
     return acc;
-  }, [] as any[]).sort((a, b) => a.month.localeCompare(b.month));
+  }, [] as any[]).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
 
   // Prepare category data for pie chart
-  const categoryData = transactions
+  const categoryData = filteredTransactions
     .filter(t => t.type === 'зарлага')
     .reduce((acc, transaction) => {
       const existing = acc.find(item => item.category === transaction.category);
@@ -58,25 +99,27 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
     }, [] as any[]);
 
   // Prepare daily data for bar chart
-  const dailyData = transactions.reduce((acc, transaction) => {
-    const day = new Date(transaction.date).toLocaleDateString('mn-MN', { month: 'short', day: 'numeric' });
-    const existing = acc.find(item => item.day === day);
-    
+  const dailyData = filteredTransactions.reduce((acc, transaction) => {
+    const dayKey = transaction.date; // YYYY-MM-DD for reliable sorting
+    const dayLabel = new Date(transaction.date + 'T00:00:00').toLocaleDateString('mn-MN', { month: 'short', day: 'numeric' });
+    const existing = acc.find(item => item.dayKey === dayKey);
+
     if (existing) {
-      if (transaction.type === 'орлого') {
-        existing.орлого += transaction.amount;
-      } else {
-        existing.зарлага += transaction.amount;
-      }
+      if (transaction.type === 'орлого') existing.орлого += transaction.amount;
+      else existing.зарлага += transaction.amount;
     } else {
       acc.push({
-        day,
+        dayKey,
+        day: dayLabel,
         орлого: transaction.type === 'орлого' ? transaction.amount : 0,
         зарлага: transaction.type === 'зарлага' ? transaction.amount : 0
       });
     }
     return acc;
-  }, [] as any[]).sort((a, b) => a.day.localeCompare(b.day)).slice(-7);
+  }, [] as any[])
+    .sort((a, b) => a.dayKey.localeCompare(b.dayKey))
+    .slice(-7)
+    .map(({ day, орлого, зарлага }) => ({ day, орлого, зарлага })); // remove dayKey for chart consumer
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316', '#06B6D4'];
 
@@ -98,7 +141,10 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Дашбоард</h1>
+      <div className="flex items-baseline justify-between mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Дашбоард</h1>
+        <div className="text-sm text-gray-600"> хугацаа: <span className="font-medium text-gray-900">{periodLabel}</span></div>
+      </div>
       
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

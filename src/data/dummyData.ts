@@ -47,7 +47,7 @@ export const dummyTransactions: Transaction[] = [
   },
   {
     id: '5',
-    date: '2025-12-03',
+    date: '2025-9-03',
     type: 'зарлага',
     category: 'Гааль',
     amount: 300000,

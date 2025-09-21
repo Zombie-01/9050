@@ -12,6 +12,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<'1d' | '7d' | '1m' | '1y'>('7d');
 
   useEffect(() => {
     // Load transactions from localStorage or use dummy data
@@ -100,7 +101,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header with logo + online status + PWA install */}
-      <header className="bg-white fixed top-0 w-screen shadow-sm border-b border-gray-200">
+      <header className="bg-white fixed z-50 top-0 w-screen shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
@@ -108,21 +109,30 @@ function App() {
                 <BarChart3 className="w-5 h-5 text-white" />
               </div>
               <h1 className="text-xl font-bold text-gray-900">9050</h1>
+
+              {/* Period selector */}
+              <div className="ml-4 flex items-center gap-2">
+                {[
+                  { key: '1d', label: '1 өдөр' },
+                  { key: '7d', label: '7 хоног' },
+                  { key: '1m', label: '1 сар' },
+                  { key: '1y', label: '1 жил' }
+                ].map(p => (
+                  <button
+                    key={p.key}
+                    onClick={() => setSelectedPeriod(p.key as any)}
+                    className={`text-xs px-2 py-1 rounded-md transition-colors border ${
+                      selectedPeriod === p.key ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                    type="button"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Online/Offline Status */}
-              <div className="flex items-center gap-2">
-                {isOnline ? (
-                  <Wifi className="w-4 h-4 text-green-500" />
-                ) : (
-                  <WifiOff className="w-4 h-4 text-red-500" />
-                )}
-                <span className={`text-sm ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
-                  {isOnline ? 'Онлайн' : 'Офлайн'}
-                </span>
-              </div>
-
               {/* PWA Install Button */}
               {deferredPrompt && (
                 <button
@@ -137,11 +147,12 @@ function App() {
         </div>
       </header>
 
-  
+      {/* spacer so fixed header doesn't cover content */}
+      <div className="h-16" />
 
       {/* Content */}
       <main className="flex-1">
-        {activeTab === 'dashboard' && <Dashboard transactions={transactions} />}
+        {activeTab === 'dashboard' && <Dashboard transactions={transactions} period={selectedPeriod} />}
         {activeTab === 'transactions' && (
           <TransactionManager
             transactions={transactions}
