@@ -23,6 +23,9 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>(''); // YYYY-MM-DD
   const [endDate, setEndDate] = useState<string>('');   // YYYY-MM-DD
+  // Pagination
+  const [perPage, setPerPage] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -97,6 +100,21 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
   });
 
   const allCategories = [...new Set(transactions.map(t => t.category))];
+
+  // Pagination calculations
+  const totalItems = filteredTransactions.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
+  // ensure currentPage is valid
+  React.useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+    if (currentPage < 1) setCurrentPage(1);
+  }, [currentPage, totalPages]);
+
+  const startIndex = (currentPage - 1) * perPage;
+  const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + perPage);
+
+  // reset page when filters or perPage change
+  React.useEffect(() => setCurrentPage(1), [searchTerm, filterType, filterCategory, startDate, endDate, perPage]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -215,14 +233,14 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
               type="text"
               placeholder="Хайх..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as any)}
+            onChange={(e) => { setFilterType(e.target.value as any); setCurrentPage(1); }}
             className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Бүх төрөл</option>
@@ -232,7 +250,7 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
 
           <select
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
+            onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
             className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Бүх ангилал</option>
@@ -242,22 +260,20 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
           </select>
 
           {/* Date range */}
-          <div className="flex gap-2">
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Эхлэх огноо"
             />
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Дуусах огноо"
             />
-          </div>
 
            <div className="flex items-center gap-2">
              <Filter className="w-4 h-4 text-gray-400" />
@@ -278,7 +294,9 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Дүн
                 </th>
-              
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Төрөл
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Тайлбар
                 </th>
@@ -294,7 +312,7 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTransactions.map((transaction) => (
+              {paginatedTransactions.map((transaction) => (
                 <tr
                   key={transaction.id}
                   className="hover:bg-gray-50 cursor-pointer"
@@ -360,6 +378,64 @@ const TransactionManager: React.FC<TransactionManagerProps> = ({
             Гүйлгээ олдсонгүй
           </div>
         )}
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between mt-4 gap-4">
+        <div className="flex items-center gap-2 text-sm text-gray-700">
+          <span>Нийт: <span className="font-medium">{totalItems}</span></span>
+          <span>| Хуудас: <span className="font-medium">{currentPage}/{totalPages}</span></span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">Нэг хуудас: </label>
+          <select
+            value={perPage}
+            onChange={(e) => { setPerPage(parseInt(e.target.value, 10)); setCurrentPage(1); }}
+            className="border border-gray-300 rounded-md px-2 py-1 text-sm"
+          >
+            {[5,10,20,50].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 border rounded-md text-sm disabled:opacity-50"
+          >
+            Prev
+          </button>
+
+          {/* simple numbered pages (show up to 7 pages) */}
+          {[...Array(totalPages)].map((_, i) => {
+            const page = i + 1;
+            // show first, last, current +/-2
+            if (totalPages > 7 && page !== 1 && page !== totalPages && Math.abs(page - currentPage) > 2) {
+              // skip rendering intermediate pages (could render ellipsis)
+              if (page === 2 && currentPage > 4) return <span key={page} className="px-2">...</span>;
+              if (page === totalPages - 1 && currentPage < totalPages - 3) return <span key={page} className="px-2">...</span>;
+              if (page > 1 && page < totalPages) return null;
+            }
+            return (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-3 py-1 border rounded-md text-sm ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : ''}`}
+              >
+                {page}
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 border rounded-md text-sm disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Detail Modal for selected transaction */}
