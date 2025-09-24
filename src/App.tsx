@@ -1,218 +1,402 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Dashboard from './components/Dashboard';
-import TransactionManager from './components/TransactionManager';
-import Reports from './components/Reports';
-import { Transaction, dummyTransactions } from './data/dummyData';
-import { saveTransactions, loadTransactions } from './utils/storage';
-import { BarChart3, CreditCard, FileText, Wifi, WifiOff } from 'lucide-react';
+import Header from './components/Header';
+import Hero from './components/Hero';
+import ProductGrid from './components/ProductGrid';
+import Features from './components/Features';
+import Footer from './components/Footer';
+import ShoppingCart from './components/ShoppingCart';
+import ProductFilter, { FilterState } from './components/ProductFilter';
+import WishlistPage from './components/WishlistPage';
+import ProductDetail from './components/ProductDetail';
+import UserProfile from './components/UserProfile';
+import ProductsPage from './components/ProductsPage';
+import AdminDashboard from './components/AdminDashboard';
+
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  rating: number;
+  reviews: number;
+  category: string;
+  description?: string;
+  features?: string[];
+  specifications?: { [key: string]: string };
+  images?: string[];
+}
+
+interface UserData {
+  name: string;
+  phone: string;
+  address: string;
+}
+
+interface CartItem extends Product {
+  quantity: number;
+}
 
 function App() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [selectedPeriod, setSelectedPeriod] = useState<'1d' | '7d' | '1m' | '1y'>('7d');
-
-  useEffect(() => {
-    // Load transactions from localStorage or use dummy data
-    const stored = loadTransactions();
-    if (stored.length > 0) {
-      setTransactions(stored);
-    } else {
-      setTransactions(dummyTransactions);
-      saveTransactions(dummyTransactions);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
+  const [currentView, setCurrentView] = useState<'home' | 'wishlist' | 'product' | 'products'>('home');
+  const [filters, setFilters] = useState<FilterState>({
+    category: '', priceRange: [0, 10000000], brand: '', rating: 0, sortBy: 'featured'
+  });
+  const [userData, setUserData] = useState<UserData>({ name: '', phone: '', address: '' });
+  const [products, setProducts] = useState<Product[]>([
+    {
+      id: 1,
+      name: "Apple iPhone 15 Pro Max 256GB",
+      price: 2890000,
+      originalPrice: 3200000,
+      image: "https://images.pexels.com/photos/1454178/pexels-photo-1454178.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
+      rating: 5.0,
+      reviews: 124,
+      category: "Утас",
+      description: "Хамгийн сүүлийн үеийн iPhone 15 Pro Max нь A17 Pro чип, титан корпус, 48MP камертай.",
+      features: ["A17 Pro чип", "Титан корпус", "48MP камер", "USB-C порт"],
+      specifications: {
+        "Дэлгэц": "6.7 инч Super Retina XDR",
+        "Чип": "A17 Pro",
+        "Камер": "48MP + 12MP + 12MP",
+        "Батарей": "29 цаг видео тоглуулах"
+      }
+    },
+    {
+      id: 2,
+      name: "Samsung Galaxy S24 Ultra 512GB",
+      price: 2650000,
+      image: "https://images.pexels.com/photos/1927130/pexels-photo-1927130.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
+      rating: 4.9,
+      reviews: 89,
+      category: "Утас",
+      description: "Galaxy S24 Ultra нь S Pen-тэй хамт ирдэг хамгийн хүчирхэг Android утас.",
+      features: ["S Pen дэмжлэг", "200MP камер", "AI функцууд", "5000mAh батарей"],
+      specifications: {
+        "Дэлгэц": "6.8 инч Dynamic AMOLED 2X",
+        "Чип": "Snapdragon 8 Gen 3",
+        "Камер": "200MP + 50MP + 12MP + 10MP",
+        "Батарей": "5000mAh"
+      }
+    },
+    {
+      id: 3,
+      name: "MacBook Pro 16-inch M3 Max",
+      price: 6890000,
+      originalPrice: 7500000,
+      image: "https://images.pexels.com/photos/1456737/pexels-photo-1456737.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
+      rating: 5.0,
+      reviews: 203,
+      category: "Компьютер",
+      description: "M3 Max чиптэй MacBook Pro нь мэргэжлийн ажилд зориулсан хамгийн хүчирхэг лаптоп.",
+      features: ["M3 Max чип", "Liquid Retina XDR дэлгэц", "22 цаг батарей", "6 спикер"],
+      specifications: {
+        "Чип": "Apple M3 Max",
+        "Дэлгэц": "16.2 инч Liquid Retina XDR",
+        "Санах ой": "36GB unified memory",
+        "Хадгалах сан": "1TB SSD"
+      }
+    },
+    {
+      id: 4,
+      name: "Sony WH-1000XM5 Чихэвч",
+      price: 890000,
+      image: "https://images.pexels.com/photos/1454176/pexels-photo-1454176.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
+      rating: 4.8,
+      reviews: 67,
+      category: "Аудио",
+      description: "Дэлхийн хамгийн сайн дуу чимээ хасагч чихэвч.",
+      features: ["Дуу чимээ хасах", "30 цаг батарей", "Hi-Res Audio", "Мультипойнт холболт"],
+      specifications: {
+        "Драйвер": "30мм",
+        "Батарей": "30 цаг",
+        "Жин": "250г",
+        "Холболт": "Bluetooth 5.2"
+      }
+    },
+    {
+      id: 5,
+      name: "Apple Watch Ultra 2 49mm",
+      price: 1890000,
+      image: "https://images.pexels.com/photos/1464204/pexels-photo-1464204.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
+      rating: 4.9,
+      reviews: 156,
+      category: "Ухаалаг цаг",
+      description: "Хамгийн бат бөх Apple Watch спорт болон адал явдалд зориулагдсан.",
+      features: ["Титан корпус", "36 цаг батарей", "GPS + Cellular", "Усны эсэргүүцэл"],
+      specifications: {
+        "Дэлгэц": "49мм Always-On Retina",
+        "Чип": "S9 SiP",
+        "Батарей": "36 цаг",
+        "Усны эсэргүүцэл": "100м"
+      }
+    },
+    {
+      id: 6,
+      name: "iPad Pro 12.9-inch M2 1TB",
+      price: 3290000,
+      originalPrice: 3650000,
+      image: "https://images.pexels.com/photos/1456735/pexels-photo-1456735.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
+      rating: 4.7,
+      reviews: 93,
+      category: "Таблет",
+      description: "M2 чиптэй iPad Pro нь лаптопын хүчин чадалтай таблет.",
+      features: ["M2 чип", "Liquid Retina XDR", "Apple Pencil дэмжлэг", "5G холболт"],
+      specifications: {
+        "Чип": "Apple M2",
+        "Дэлгэц": "12.9 инч Liquid Retina XDR",
+        "Санах ой": "16GB",
+        "Хадгалах сан": "1TB"
+      }
+    },
+    {
+      id: 7,
+      name: "Nintendo Switch OLED 64GB",
+      price: 890000,
+      image: "https://images.pexels.com/photos/442576/pexels-photo-442576.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
+      rating: 4.8,
+      reviews: 234,
+      category: "Тоглоом",
+      description: "OLED дэлгэцтэй Nintendo Switch нь гэр болон гадаа тоглох боломжтой.",
+      features: ["7 инч OLED дэлгэц", "64GB санах ой", "Гар болон суурин горим", "Joy-Con удирдлага"],
+      specifications: {
+        "Дэлгэц": "7 инч OLED",
+        "Санах ой": "64GB",
+        "Батарей": "4.5-9 цаг",
+        "Жин": "420г"
+      }
+    },
+    {
+      id: 8,
+      name: "Canon EOS R5 Камер",
+      price: 4890000,
+      originalPrice: 5200000,
+      image: "https://images.pexels.com/photos/90946/pexels-photo-90946.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
+      rating: 4.9,
+      reviews: 145,
+      category: "Камер",
+      description: "45MP full-frame мирроргүй камер 8K видео бичлэгтэй.",
+      features: ["45MP сенсор", "8K видео", "Дуал пиксел автофокус", "5-тэнхлэгийн стабилизатор"],
+      specifications: {
+        "Сенсор": "45MP Full-Frame CMOS",
+        "Видео": "8K RAW, 4K 120p",
+        "Автофокус": "1053 цэг",
+        "Батарей": "490 зураг"
+      }
+    },
+    {
+      id: 9,
+      name: "Tesla Model Y Performance",
+      price: 89000000,
+      image: "https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
+      rating: 5.0,
+      reviews: 89,
+      category: "Автомашин",
+      description: "Цахилгаан SUV хамгийн дээд гүйцэтгэлтэй загвар.",
+      features: ["Dual Motor AWD", "456км зай", "3.5с 0-100км/ц", "Autopilot"],
+      specifications: {
+        "Хүчин чадал": "456км",
+        "Хурдатгал": "3.5с (0-100км/ц)",
+        "Дээд хурд": "250км/ц",
+        "Суудал": "7 хүн"
+      }
     }
+  ]);
 
-    // PWA install prompt
-    const handleBeforeInstallPrompt = (e: any) => {
+  const handleAddToCart = (product: Product, quantity: number = 1) => {
+    setCartItems(prev => {
+      const existingItem = prev.find(item => item.id === product.id);
+      
+      if (existingItem) {
+        return prev.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+      }
+      
+      return [...prev, { ...product, quantity }];
+    });
+    
+    // Briefly show cart
+    setIsCartOpen(true);
+  };
+
+  const handleUpdateQuantity = (id: number, quantity: number) => {
+    if (quantity === 0) {
+      handleRemoveItem(id);
+      return;
+    }
+    
+    setCartItems(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  const handleRemoveItem = (id: number) => {
+    setCartItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleAddToWishlist = (product: Product) => {
+    setWishlistItems(prev => {
+      const exists = prev.find(item => item.id === product.id);
+      if (exists) {
+        return prev.filter(item => item.id !== product.id);
+      }
+      return [...prev, product];
+    });
+  };
+
+  const handleRemoveFromWishlist = (id: number) => {
+    setWishlistItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setCurrentView('product');
+  };
+
+  const handleBackToHome = () => {
+    setSelectedProduct(null);
+    setCurrentView('home');
+  };
+
+  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Add smooth scrolling
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      const target = e.target as HTMLAnchorElement;
+      const href = target.getAttribute('href');
+      
+      if (href?.startsWith('#')) {
+        const element = document.querySelector(href);
+        if (element) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      }
     };
 
-    // Online/offline status
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('SW registered: ', registration);
-          })
-          .catch((registrationError) => {
-            console.log('SW registration failed: ', registrationError);
-          });
-      });
-    }
+    const links = document.querySelectorAll('a[href^="#"]');
+    links.forEach(link => {
+      link.addEventListener('click', handleScroll);
+    });
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      links.forEach(link => {
+        link.removeEventListener('click', handleScroll);
+      });
     };
   }, []);
 
-  const handleAddTransaction = (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: Date.now().toString()
-    };
-    const updatedTransactions = [newTransaction, ...transactions];
-    setTransactions(updatedTransactions);
-    saveTransactions(updatedTransactions);
-  };
-
-  const handleEditTransaction = (id: string, transaction: Omit<Transaction, 'id'>) => {
-    const updatedTransactions = transactions.map(t => 
-      t.id === id ? { ...transaction, id } : t
-    );
-    setTransactions(updatedTransactions);
-    saveTransactions(updatedTransactions);
-  };
-
-  const handleDeleteTransaction = (id: string) => {
-    const updatedTransactions = transactions.filter(t => t.id !== id);
-    setTransactions(updatedTransactions);
-    saveTransactions(updatedTransactions);
-  };
-
-  const installPWA = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'products':
+        return (
+          <ProductsPage
+            products={products}
+            onAddToCart={handleAddToCart}
+            onProductClick={handleProductClick}
+            onAddToWishlist={handleAddToWishlist}
+            wishlistItems={wishlistItems}
+          />
+        );
+      case 'wishlist':
+        return (
+          <WishlistPage
+            wishlistItems={wishlistItems}
+            onRemoveFromWishlist={handleRemoveFromWishlist}
+            onAddToCart={handleAddToCart}
+          />
+        );
+      case 'product':
+        return selectedProduct ? (
+          <ProductDetail
+            product={selectedProduct}
+            onAddToCart={handleAddToCart}
+            onAddToWishlist={handleAddToWishlist}
+            onBack={handleBackToHome}
+            isInWishlist={wishlistItems.some(item => item.id === selectedProduct.id)}
+          />
+        ) : null;
+      default:
+        return (
+          <>
+            <Hero />
+            <ProductGrid 
+              onAddToCart={handleAddToCart}
+              onProductClick={handleProductClick}
+              onAddToWishlist={handleAddToWishlist}
+              onFilterToggle={() => setIsFilterOpen(true)}
+              filters={filters}
+              wishlistItems={wishlistItems}
+              products={products}
+            />
+            <Features />
+          </>
+        );
     }
   };
 
-  const tabs = [
-    { id: 'dashboard', label: 'Дашбоард', icon: BarChart3 },
-    { id: 'transactions', label: 'Гүйлгээ', icon: CreditCard },
-    { id: 'reports', label: 'Тайлан', icon: FileText }
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header with logo + online status + PWA install */}
-      <header className="bg-white fixed z-50 top-0 w-screen shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">9050</h1>
-
-              {/* Period selector */}
-              <div className="ml-4 flex items-center gap-2">
-                {[
-                  { key: '1d', label: '1 өдөр' },
-                  { key: '7d', label: '7 хоног' },
-                  { key: '1m', label: '1 сар' },
-                  { key: '1y', label: '1 жил' }
-                ].map(p => (
-                  <button
-                    key={p.key}
-                    onClick={() => setSelectedPeriod(p.key as any)}
-                    className={`text-xs px-2 py-1 rounded-md transition-colors border ${
-                      selectedPeriod === p.key ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                    }`}
-                    type="button"
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* PWA Install Button */}
-              {deferredPrompt && (
-                <button
-                  onClick={installPWA}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm transition-colors"
-                >
-                  Суулгах
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* spacer so fixed header doesn't cover content */}
-      <div className="h-16" />
-
-      {/* Content */}
-      <main className="flex-1">
-        {activeTab === 'dashboard' && <Dashboard transactions={transactions} period={selectedPeriod} />}
-        {activeTab === 'transactions' && (
-          <TransactionManager
-            transactions={transactions}
-            onAdd={handleAddTransaction}
-            onEdit={handleEditTransaction}
-            onDelete={handleDeleteTransaction}
-          />
-        )}
-        {activeTab === 'reports' && <Reports transactions={transactions} />}
-      </main>
-
-      {/* Sticky Bottom Navbar (navigation only) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="hidden md:flex items-center justify-center h-16">
-            {/* Desktop / tablet tab buttons (hidden on small screens) */}
-            <div className="flex items-center gap-6">
-              {tabs.map(tab => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 py-2 px-3 rounded-md transition-colors ${
-                      activeTab === tab.id ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="text-sm">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Mobile tabs row (visible on small screens) */}
-          <div className="md:hidden grid grid-cols-3">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center py-3 px-1 text-xs transition-colors ${
-                    activeTab === tab.id
-                      ? 'text-blue-600'
-                      : 'text-gray-500'
-                  }`}
-                >
-                  <Icon className="w-5 h-5 mb-1" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* spacer so content isn't hidden behind fixed bottom bar */}
-      <div className="h-20"></div>
+    <div className="min-h-screen bg-black">
+      <Header 
+        cartCount={cartCount}
+        wishlistCount={wishlistItems.length}
+        onCartToggle={() => setIsCartOpen(!isCartOpen)}
+        onWishlistToggle={() => setCurrentView('wishlist')}
+        onProfileToggle={() => setIsProfileOpen(true)}
+        onHomeClick={() => setCurrentView('home')}
+        onProductsClick={() => setCurrentView('products')}
+        onAdminClick={() => setIsAdminOpen(true)}
+      />
+      
+      {renderCurrentView()}
+      
+      <Footer />
+      
+      <ShoppingCart
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cartItems={cartItems}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemoveItem={handleRemoveItem}
+      />
+      
+      <ProductFilter
+        isOpen={isFilterOpen}
+        onToggle={() => setIsFilterOpen(!isFilterOpen)}
+        onFilterChange={setFilters}
+      />
+      
+      <UserProfile
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        userData={userData}
+        onUpdateUser={setUserData}
+      />
+      
+      {isAdminOpen && (
+        <AdminDashboard
+          products={products}
+          onUpdateProducts={setProducts}
+          onClose={() => setIsAdminOpen(false)}
+        />
+      )}
     </div>
   );
 }
