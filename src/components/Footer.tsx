@@ -18,10 +18,10 @@ export default function Footer() {
             
             {/* Social Links */}
             <div className="flex space-x-4">
-              <a href="#" className="w-10 h-10 bg-gray-800 hover:bg-gold rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 group">
+              <a target='_blank' href="https://www.facebook.com/share/1Fi9FN6kSc/?mibextid=wwXIfr" className="w-10 h-10 bg-gray-800 hover:bg-gold rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 group">
                 <Facebook size={20} className="text-gray-400 group-hover:text-black transition-colors duration-300" />
               </a>
-              <a href="#" className="w-10 h-10 bg-gray-800 hover:bg-gold rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 group">
+              <a href="https://www.instagram.com/alungoo_store/" target='_blank' className="w-10 h-10 bg-gray-800 hover:bg-gold rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 group">
                 <Instagram size={20} className="text-gray-400 group-hover:text-black transition-colors duration-300" />
               </a>
             </div>
@@ -34,7 +34,7 @@ export default function Footer() {
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <Phone size={18} className="text-gold" />
-                <span className="text-gray-400">+976 7777-7777</span>
+                <span className="text-gray-400">+976 9992-6520</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Mail size={18} className="text-gold" />
@@ -75,7 +75,7 @@ export default function Footer() {
         <div className="border-t border-gray-800 pt-8">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="text-gray-500 text-sm mb-4 md:mb-0">
-              © 2024 AGo Online Store. Бүх эрх хуулиар хамгаалагдсан.
+              © 2025 AGo Online Store. Бүх эрх хуулиар хамгаалагдсан.
             </div>
             
             <div className="flex items-center space-x-1 text-gray-500 text-sm">
