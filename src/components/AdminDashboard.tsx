@@ -1,36 +1,25 @@
 import React, { useState } from 'react';
-import { BarChart3, Package, Users, Settings, Plus, Edit, Trash2, Eye, X, Save } from 'lucide-react';
-
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  rating: number;
-  reviews: number;
-  category: string;
-  description?: string;
-  features?: string[];
-  specifications?: { [key: string]: string };
-  images?: string[];
-}
+import { BarChart3, Package, Users, Settings, Plus, Edit, Trash2, Eye, X, Save, Upload, ShoppingCart } from 'lucide-react';
+import { supabase, Product, getProducts, createProduct, updateProduct, deleteProduct, uploadProductImage, getOrders } from '../lib/supabase';
 
 interface AdminDashboardProps {
-  products: Product[];
-  onUpdateProducts: (products: Product[]) => void;
   onClose: () => void;
 }
 
-export default function AdminDashboard({ products, onUpdateProducts, onClose }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products'>('dashboard');
+export default function AdminDashboard({ onClose }: AdminDashboardProps) {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders'>('dashboard');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     price: 0,
-    originalPrice: 0,
-    image: '',
+    original_price: 0,
+    image_url: '',
     rating: 5,
     reviews: 0,
     category: '',
@@ -40,6 +29,32 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
   });
 
   const categories = ['Утас', 'Компьютер', 'Аудио', 'Ухаалаг цаг', 'Таблет', 'Тоглоом', 'Камер', 'Автомашин'];
+
+  React.useEffect(() => {
+    loadProducts();
+    loadOrders();
+  }, []);
+
+  const loadProducts = async () => {
+    const { data, error } = await getProducts();
+    if (data && !error) {
+      setProducts(data);
+    }
+  };
+
+  const loadOrders = async () => {
+    const { data, error } = await getOrders();
+    if (data && !error) {
+      setOrders(data);
+    }
+  };
+
+  const handleLogout = async () => {
+    localStorage.removeItem('isAdmin');
+    await supabase.auth.signOut();
+    onClose();
+    window.location.reload();
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('mn-MN', {
@@ -54,8 +69,8 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
     setFormData({
       name: '',
       price: 0,
-      originalPrice: 0,
-      image: '',
+      original_price: 0,
+      image_url: '',
       rating: 5,
       reviews: 0,
       category: categories[0],
@@ -63,6 +78,7 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
       features: [],
       specifications: {}
     });
+    setSelectedFile(null);
     setIsProductModalOpen(true);
   };
 
@@ -72,25 +88,55 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
     setIsProductModalOpen(true);
   };
 
-  const handleDeleteProduct = (productId: number) => {
+  const handleDeleteProduct = async (productId: string) => {
     if (confirm('Энэ бүтээгдэхүүнийг устгахдаа итгэлтэй байна уу?')) {
-      const updatedProducts = products.filter(p => p.id !== productId);
-      onUpdateProducts(updatedProducts);
+      const { error } = await deleteProduct(productId);
+      if (!error) {
+        loadProducts();
+      }
     }
   };
 
-  const handleSaveProduct = () => {
-    if (!formData.name || !formData.price || !formData.image || !formData.category) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleSaveProduct = async () => {
+    if (!formData.name || !formData.price || !formData.category) {
       alert('Заавал бөглөх талбаруудыг бөглөнө үү');
       return;
     }
 
-    const productData: Product = {
-      id: editingProduct?.id || Date.now(),
+    setLoading(true);
+
+    try {
+      let imageUrl = formData.image_url;
+
+      // Upload image if file is selected
+      if (selectedFile) {
+        setUploading(true);
+        const tempId = editingProduct?.id || Date.now().toString();
+        const { data: uploadData, error: uploadError } = await uploadProductImage(selectedFile, tempId);
+        
+        if (uploadError) {
+          alert('Зураг хуулахад алдаа гарлаа: ' + uploadError.message);
+          setUploading(false);
+          setLoading(false);
+          return;
+        }
+        
+        imageUrl = uploadData?.publicUrl;
+        setUploading(false);
+      }
+
+      const productData = {
       name: formData.name!,
       price: formData.price!,
-      originalPrice: formData.originalPrice || undefined,
-      image: formData.image!,
+      original_price: formData.original_price || undefined,
+      image_url: imageUrl,
       rating: formData.rating || 5,
       reviews: formData.reviews || 0,
       category: formData.category!,
@@ -99,19 +145,34 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
       specifications: formData.specifications || {}
     };
 
-    let updatedProducts;
-    if (editingProduct) {
-      updatedProducts = products.map(p => p.id === editingProduct.id ? productData : p);
-    } else {
-      updatedProducts = [...products, productData];
-    }
+      if (editingProduct) {
+        const { error } = await updateProduct(editingProduct.id, productData);
+        if (error) {
+          alert('Бүтээгдэхүүн шинэчлэхэд алдаа гарлаа: ' + error.message);
+          setLoading(false);
+          return;
+        }
+      } else {
+        const { error } = await createProduct(productData);
+        if (error) {
+          alert('Бүтээгдэхүүн үүсгэхэд алдаа гарлаа: ' + error.message);
+          setLoading(false);
+          return;
+        }
+      }
 
-    onUpdateProducts(updatedProducts);
-    setIsProductModalOpen(false);
+      await loadProducts();
+      setIsProductModalOpen(false);
+    } catch (error) {
+      alert('Алдаа гарлаа: ' + error);
+    }
+    
+    setLoading(false);
   };
 
-  const totalRevenue = products.reduce((sum, product) => sum + (product.price * product.reviews), 0);
+  const totalRevenue = orders.reduce((sum, order) => sum + order.total_amount, 0);
   const totalProducts = products.length;
+  const totalOrders = orders.length;
   const averageRating = products.reduce((sum, product) => sum + product.rating, 0) / products.length;
 
   return (
@@ -122,12 +183,20 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
           <div className="p-6 border-b border-gray-800">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-serif text-gold">Админ самбар</h2>
-              <button
-                onClick={onClose}
-                className="p-2 text-gray-400 hover:text-white transition-colors duration-300"
-              >
-                <X size={20} />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors duration-300 text-sm"
+                >
+                  Гарах
+                </button>
+                <button
+                  onClick={onClose}
+                  className="p-2 text-gray-400 hover:text-white transition-colors duration-300"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -155,6 +224,18 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
               <Package size={20} />
               <span>Бүтээгдэхүүн</span>
             </button>
+            
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                activeTab === 'orders'
+                  ? 'bg-gradient-to-r from-gold to-yellow-500 text-black font-semibold'
+                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+              }`}
+            >
+              <ShoppingCart size={20} />
+              <span>Захиалга</span>
+            </button>
           </nav>
         </div>
 
@@ -181,11 +262,11 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                 <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-gray-400 text-sm">Нийт бүтээгдэхүүн</p>
-                      <p className="text-2xl font-bold text-gold">{totalProducts}</p>
+                      <p className="text-gray-400 text-sm">Нийт захиалга</p>
+                      <p className="text-2xl font-bold text-gold">{totalOrders}</p>
                     </div>
                     <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl flex items-center justify-center">
-                      <Package size={24} className="text-white" />
+                      <ShoppingCart size={24} className="text-white" />
                     </div>
                   </div>
                 </div>
@@ -193,11 +274,11 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                 <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-gray-400 text-sm">Дундаж үнэлгээ</p>
-                      <p className="text-2xl font-bold text-gold">{averageRating.toFixed(1)}</p>
+                      <p className="text-gray-400 text-sm">Нийт бүтээгдэхүүн</p>
+                      <p className="text-2xl font-bold text-gold">{totalProducts}</p>
                     </div>
                     <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl flex items-center justify-center">
-                      <Users size={24} className="text-white" />
+                      <Package size={24} className="text-white" />
                     </div>
                   </div>
                 </div>
@@ -209,7 +290,7 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                 <div className="space-y-4">
                   {products.slice(0, 5).map(product => (
                     <div key={product.id} className="flex items-center space-x-4 p-4 bg-gray-800/50 rounded-xl">
-                      <img src={product.image} alt={product.name} className="w-12 h-12 rounded-lg object-cover" />
+                      <img src={product.image_url || '/placeholder.jpg'} alt={product.name} className="w-12 h-12 rounded-lg object-cover" />
                       <div className="flex-1">
                         <h4 className="text-white font-semibold">{product.name}</h4>
                         <p className="text-gray-400 text-sm">{product.category}</p>
@@ -253,7 +334,7 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                         <tr key={product.id} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors duration-300">
                           <td className="p-4">
                             <div className="flex items-center space-x-3">
-                              <img src={product.image} alt={product.name} className="w-12 h-12 rounded-lg object-cover" />
+                              <img src={product.image_url || '/placeholder.jpg'} alt={product.name} className="w-12 h-12 rounded-lg object-cover" />
                               <div>
                                 <h4 className="text-white font-semibold">{product.name}</h4>
                                 <p className="text-gray-400 text-sm">{product.reviews} үнэлгээ</p>
@@ -263,8 +344,8 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                           <td className="p-4 text-gray-300">{product.category}</td>
                           <td className="p-4">
                             <div className="text-gold font-bold">{formatPrice(product.price)}</div>
-                            {product.originalPrice && (
-                              <div className="text-gray-500 text-sm line-through">{formatPrice(product.originalPrice)}</div>
+                            {product.original_price && (
+                              <div className="text-gray-500 text-sm line-through">{formatPrice(product.original_price)}</div>
                             )}
                           </td>
                           <td className="p-4 text-gold font-semibold">{product.rating}</td>
@@ -283,6 +364,60 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                                 <Trash2 size={16} />
                               </button>
                             </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'orders' && (
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <h1 className="text-4xl font-serif text-white">Захиалга удирдах</h1>
+              </div>
+
+              {/* Orders Table */}
+              <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-800/50 border-b border-gray-700">
+                      <tr>
+                        <th className="text-left p-4 text-gray-300 font-semibold">Захиалгын дугаар</th>
+                        <th className="text-left p-4 text-gray-300 font-semibold">Хэрэглэгч</th>
+                        <th className="text-left p-4 text-gray-300 font-semibold">Дүн</th>
+                        <th className="text-left p-4 text-gray-300 font-semibold">Төлөв</th>
+                        <th className="text-left p-4 text-gray-300 font-semibold">Огноо</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.map(order => (
+                        <tr key={order.id} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors duration-300">
+                          <td className="p-4 text-white font-mono text-sm">
+                            #{order.id.slice(0, 8)}
+                          </td>
+                          <td className="p-4">
+                            <div>
+                              <div className="text-white font-semibold">{order.user_profiles?.name || 'Нэргүй'}</div>
+                              <div className="text-gray-400 text-sm">{order.user_profiles?.phone}</div>
+                            </div>
+                          </td>
+                          <td className="p-4 text-gold font-bold">{formatPrice(order.total_amount)}</td>
+                          <td className="p-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              order.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                              order.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                              'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {order.status === 'completed' ? 'Дууссан' :
+                               order.status === 'pending' ? 'Хүлээгдэж буй' : order.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-gray-300">
+                            {new Date(order.created_at).toLocaleDateString('mn-MN')}
                           </td>
                         </tr>
                       ))}
@@ -344,7 +479,7 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                   <input
                     type="number"
                     value={formData.price || ''}
-                    onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold transition-colors duration-300"
                     placeholder="0"
                   />
@@ -354,8 +489,8 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                   <label className="block text-sm font-semibold text-gold mb-2">Хуучин үнэ</label>
                   <input
                     type="number"
-                    value={formData.originalPrice || ''}
-                    onChange={(e) => setFormData({ ...formData, originalPrice: parseInt(e.target.value) || undefined })}
+                    value={formData.original_price || ''}
+                    onChange={(e) => setFormData({ ...formData, original_price: parseInt(e.target.value) || undefined })}
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold transition-colors duration-300"
                     placeholder="0"
                   />
@@ -380,7 +515,7 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                   <input
                     type="number"
                     value={formData.reviews || ''}
-                    onChange={(e) => setFormData({ ...formData, reviews: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, reviews: parseInt(e.target.value) || 0 })}
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold transition-colors duration-300"
                     placeholder="0"
                   />
@@ -388,14 +523,26 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gold mb-2">Зургийн URL *</label>
-                <input
-                  type="url"
-                  value={formData.image || ''}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold transition-colors duration-300"
-                  placeholder="https://example.com/image.jpg"
-                />
+                <label className="block text-sm font-semibold text-gold mb-2">Бүтээгдэхүүний зураг</label>
+                <div className="space-y-4">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gold file:text-black file:font-semibold hover:file:bg-yellow-500"
+                  />
+                  {selectedFile && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-400">
+                      <Upload size={16} />
+                      <span>{selectedFile.name}</span>
+                    </div>
+                  )}
+                  {formData.image_url && !selectedFile && (
+                    <div className="w-20 h-20 rounded-lg overflow-hidden">
+                      <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -418,10 +565,25 @@ export default function AdminDashboard({ products, onUpdateProducts, onClose }: 
                 </button>
                 <button
                   onClick={handleSaveProduct}
+                  disabled={loading || uploading}
                   className="flex-1 bg-gradient-to-r from-gold to-yellow-500 text-black font-bold py-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 hover:shadow-lg hover:shadow-gold/25 hover:scale-105"
                 >
-                  <Save size={18} />
-                  <span>Хадгалах</span>
+                  {uploading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                      <span>Зураг хуулж байна...</span>
+                    </>
+                  ) : loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                      <span>Хадгалж байна...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={18} />
+                      <span>Хадгалах</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

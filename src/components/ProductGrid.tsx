@@ -2,16 +2,7 @@ import React from 'react';
 import { Heart, ShoppingBag, Eye, Star, Filter } from 'lucide-react';
 import { FilterState } from './ProductFilter';
 
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  rating: number;
-  reviews: number;
-  category: string;
-}
+import { Product } from '../lib/supabase';
 
 interface ProductGridProps {
   onAddToCart: (product: Product) => void;
@@ -113,15 +104,15 @@ export default function ProductGrid({ onAddToCart, onProductClick, onAddToWishli
                 className="relative aspect-square overflow-hidden w-full"
               >
                 <img
-                  src={product.image}
+                  src={product.image_url || '/placeholder.jpg'}
                   alt={product.name}
                   className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-1000 group-hover:rotate-2"
                 />
                 
                 {/* Discount Badge */}
-                {product.originalPrice && (
+                {product.original_price && (
                   <div className="absolute top-4 left-4 bg-gradient-to-r from-red-600 to-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                    {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% ХӨНГӨЛӨЛТ
+                    {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% ХӨНГӨЛӨЛТ
                   </div>
                 )}
 
@@ -187,9 +178,9 @@ export default function ProductGrid({ onAddToCart, onProductClick, onAddToWishli
                 <div className="flex items-center justify-between">
                   <div className="flex items-baseline space-x-2">
                     <span className="text-2xl font-bold text-gold">{formatPrice(product.price)}</span>
-                    {product.originalPrice && (
+                    {product.original_price && (
                       <span className="text-sm text-gray-500 line-through">
-                        {formatPrice(product.originalPrice)}
+                        {formatPrice(product.original_price)}
                       </span>
                     )}
                   </div>

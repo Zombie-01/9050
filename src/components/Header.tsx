@@ -10,10 +10,20 @@ interface HeaderProps {
   onHomeClick: () => void;
   onProductsClick: () => void;
   onAdminClick: () => void;
+  onSearch: (query: string) => void;
+  isAdmin?: boolean;
 }
 
-export default function Header({ cartCount, wishlistCount, onCartToggle, onWishlistToggle, onProfileToggle, onHomeClick, onProductsClick, onAdminClick }: HeaderProps) {
+export default function Header({ cartCount, wishlistCount, onCartToggle, onWishlistToggle, onProfileToggle, onHomeClick, onProductsClick, onAdminClick, onSearch, isAdmin = false }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      onSearch(searchQuery);
+    }
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-b border-gray-800/50">
@@ -24,9 +34,7 @@ export default function Header({ cartCount, wishlistCount, onCartToggle, onWishl
             onClick={onHomeClick}
             className="flex items-center space-x-2 hover:scale-105 transition-transform duration-300"
           >
-            <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center">
-              <span className="text-black font-bold text-sm">A</span>
-            </div>
+            <img src='/ago.jpg' className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center"/>
             <span className="text-2xl font-serif text-white tracking-wider">AGo</span>
           </button>
 
@@ -34,14 +42,28 @@ export default function Header({ cartCount, wishlistCount, onCartToggle, onWishl
           <nav className="hidden md:flex items-center space-x-8">
             <button onClick={onHomeClick} className="text-gray-300 hover:text-gold transition-colors duration-300">Нүүр хуудас</button>
             <button onClick={onProductsClick} className="text-gray-300 hover:text-gold transition-colors duration-300">Бүтээгдэхүүн</button>
-            <button onClick={onAdminClick} className="text-gray-300 hover:text-gold transition-colors duration-300 text-sm">Админ</button>
+            {isAdmin && (
+              <button onClick={onAdminClick} className="text-gray-300 hover:text-gold transition-colors duration-300 text-sm">Админ</button>
+            )}
           </nav>
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-4">
-            <button className="p-2 text-gray-400 hover:text-white transition-colors duration-300">
-              <Search size={20} />
-            </button>
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Хайх..."
+                className="bg-gray-800 border border-gray-700 rounded-xl pl-10 pr-4 py-2 text-white text-sm focus:outline-none focus:border-gold transition-colors duration-300 w-48"
+              />
+              <button
+                type="submit"
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors duration-300"
+              >
+                <Search size={16} />
+              </button>
+            </form>
             <button 
               onClick={onProfileToggle}
               className="p-2 text-gray-400 hover:text-white transition-colors duration-300"
@@ -87,11 +109,16 @@ export default function Header({ cartCount, wishlistCount, onCartToggle, onWishl
             <nav className="flex flex-col space-y-4 mt-4">
               <button onClick={onHomeClick} className="text-left text-gray-300 hover:text-gold transition-colors duration-300">Нүүр хуудас</button>
               <button onClick={onProductsClick} className="text-left text-gray-300 hover:text-gold transition-colors duration-300">Бүтээгдэхүүн</button>
-              <button onClick={onAdminClick} className="text-left text-gray-300 hover:text-gold transition-colors duration-300 text-sm">Админ</button>
+              {isAdmin && (
+                <button onClick={onAdminClick} className="text-left text-gray-300 hover:text-gold transition-colors duration-300 text-sm">Админ</button>
+              )}
             </nav>
             <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-800">
               <div className="flex items-center space-x-4">
-                <button className="p-2 text-gray-400 hover:text-white transition-colors duration-300">
+                <button 
+                  onClick={() => onSearch('')}
+                  className="p-2 text-gray-400 hover:text-white transition-colors duration-300"
+                >
                   <Search size={20} />
                 </button>
                 <button 

@@ -10,10 +10,7 @@ export default function Footer() {
           {/* Brand Section */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-2 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center">
-                <span className="text-black font-bold text-lg">A</span>
-              </div>
-              <span className="text-3xl font-serif tracking-wider">AGO ONLINE STORE</span>
+              <img src='/ago.jpg'  className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center"/>              <span className="text-3xl font-serif tracking-wider">AGO ONLINE STORE</span>
             </div>
             <p className="text-gray-400 mb-6 max-w-md leading-relaxed">
               Дэлхийн шилдэг брэндүүдийн бүтээгдэхүүнийг Монголын хэрэглэгчдэд хүргэдэг тэргүүлэх онлайн дэлгүүр.
@@ -30,17 +27,6 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h3 className="text-xl font-serif text-gold mb-6">Цэс</h3>
-            <ul className="space-y-3">
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Нүүр хуудас</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Бүтээгдэхүүн</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Бидний тухай</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Үйлчилгээний нөхцөл</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Нууцлалын бодлого</a></li>
-            </ul>
-          </div>
 
           {/* Contact Info */}
           <div>

@@ -23,9 +23,10 @@ interface ProductsPageProps {
   onAddToWishlist: (product: Product) => void;
   wishlistItems: Product[];
   products: Product[];
+  searchQuery?: string;
 }
 
-export default function ProductsPage({ onAddToCart, onProductClick, onAddToWishlist, wishlistItems, products }: ProductsPageProps) {
+export default function ProductsPage({ onAddToCart, onProductClick, onAddToWishlist, wishlistItems, products, searchQuery = '' }: ProductsPageProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState<FilterState>({
@@ -34,6 +35,12 @@ export default function ProductsPage({ onAddToCart, onProductClick, onAddToWishl
 
   // Filter products based on current filters
   const filteredProducts = products.filter(product => {
+    // Search filter
+    if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase()) && 
+        !product.category.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+    
     if (filters.category && product.category !== filters.category) return false;
     if (product.price < filters.priceRange[0] || product.price > filters.priceRange[1]) return false;
     if (filters.brand && !product.name.toLowerCase().includes(filters.brand.toLowerCase())) return false;
@@ -68,12 +75,21 @@ export default function ProductsPage({ onAddToCart, onProductClick, onAddToWishl
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-6xl font-serif text-white mb-6 tracking-wide">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold to-silver">
-              БҮТЭЭГДЭХҮҮН
-            </span>
+            {searchQuery ? (
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold to-silver">
+                "{searchQuery}" ХАЙЛТЫН ҮР ДҮН
+              </span>
+            ) : (
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold to-silver">
+                БҮТЭЭГДЭХҮҮН
+              </span>
+            )}
           </h1>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
-            Дэлхийн шилдэг брэндүүдийн бүтээгдэхүүнүүдийг нэг дороос
+            {searchQuery ? 
+              `"${searchQuery}" хайлтаар ${sortedProducts.length} бүтээгдэхүүн олдлоо` :
+              'Дэлхийн шилдэг брэндүүдийн бүтээгдэхүүнүүдийг нэг дороос'
+            }
           </p>
         </div>
 
@@ -131,14 +147,14 @@ export default function ProductsPage({ onAddToCart, onProductClick, onAddToWishl
                   className="relative aspect-square overflow-hidden w-full"
                 >
                   <img
-                    src={product.image}
+                    src={product.image_url || '/placeholder.jpg'}
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-1000"
                   />
                   
-                  {product.originalPrice && (
+                  {product.original_price && (
                     <div className="absolute top-4 left-4 bg-gradient-to-r from-red-600 to-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% ХӨНГӨЛӨЛТ
+                      {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% ХӨНГӨЛӨЛТ
                     </div>
                   )}
 
@@ -199,9 +215,9 @@ export default function ProductsPage({ onAddToCart, onProductClick, onAddToWishl
                   <div className="flex items-center justify-between">
                     <div className="flex items-baseline space-x-2">
                       <span className="text-2xl font-bold text-gold">{formatPrice(product.price)}</span>
-                      {product.originalPrice && (
+                      {product.original_price && (
                         <span className="text-sm text-gray-500 line-through">
-                          {formatPrice(product.originalPrice)}
+                          {formatPrice(product.original_price)}
                         </span>
                       )}
                     </div>
@@ -224,13 +240,13 @@ export default function ProductsPage({ onAddToCart, onProductClick, onAddToWishl
                     className="relative w-full md:w-64 h-64 overflow-hidden"
                   >
                     <img
-                      src={product.image}
+                      src={product.image_url || '/placeholder.jpg'}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     />
-                    {product.originalPrice && (
+                    {product.original_price && (
                       <div className="absolute top-4 left-4 bg-gradient-to-r from-red-600 to-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                        {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% ХӨНГӨЛӨЛТ
+                        {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% ХӨНГӨЛӨЛТ
                       </div>
                     )}
                   </button>
@@ -268,9 +284,9 @@ export default function ProductsPage({ onAddToCart, onProductClick, onAddToWishl
                     <div className="flex items-center justify-between">
                       <div className="flex items-baseline space-x-2">
                         <span className="text-3xl font-bold text-gold">{formatPrice(product.price)}</span>
-                        {product.originalPrice && (
+                        {product.original_price && (
                           <span className="text-lg text-gray-500 line-through">
-                            {formatPrice(product.originalPrice)}
+                            {formatPrice(product.original_price)}
                           </span>
                         )}
                       </div>

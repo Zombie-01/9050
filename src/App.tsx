@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase, Product, getProducts } from './lib/supabase';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import ProductGrid from './components/ProductGrid';
@@ -11,21 +12,8 @@ import ProductDetail from './components/ProductDetail';
 import UserProfile from './components/UserProfile';
 import ProductsPage from './components/ProductsPage';
 import AdminDashboard from './components/AdminDashboard';
-
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  rating: number;
-  reviews: number;
-  category: string;
-  description?: string;
-  features?: string[];
-  specifications?: { [key: string]: string };
-  images?: string[];
-}
+import AdminRoute from './components/AdminRoute';
+import AuthModal from './components/AuthModal';
 
 interface UserData {
   name: string;
@@ -40,176 +28,76 @@ interface CartItem extends Product {
 function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
-  const [currentView, setCurrentView] = useState<'home' | 'wishlist' | 'product' | 'products'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'wishlist' | 'product' | 'products' | 'admin'>('home');
   const [filters, setFilters] = useState<FilterState>({
     category: '', priceRange: [0, 10000000], brand: '', rating: 0, sortBy: 'featured'
   });
   const [userData, setUserData] = useState<UserData>({ name: '', phone: '', address: '' });
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: 1,
-      name: "Apple iPhone 15 Pro Max 256GB",
-      price: 2890000,
-      originalPrice: 3200000,
-      image: "https://images.pexels.com/photos/1454178/pexels-photo-1454178.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
-      rating: 5.0,
-      reviews: 124,
-      category: "Утас",
-      description: "Хамгийн сүүлийн үеийн iPhone 15 Pro Max нь A17 Pro чип, титан корпус, 48MP камертай.",
-      features: ["A17 Pro чип", "Титан корпус", "48MP камер", "USB-C порт"],
-      specifications: {
-        "Дэлгэц": "6.7 инч Super Retina XDR",
-        "Чип": "A17 Pro",
-        "Камер": "48MP + 12MP + 12MP",
-        "Батарей": "29 цаг видео тоглуулах"
+  const [products, setProducts] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [profileInitialEditing, setProfileInitialEditing] = useState<boolean>(false);
+
+  useEffect(() => {
+    loadProducts();
+    
+    // Check auth state
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // fetch user profile to determine admin status whenever user changes
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) {
+        setIsAdmin(false);
+        setUserData({ name: '', phone: '', address: '' });
+        return;
       }
-    },
-    {
-      id: 2,
-      name: "Samsung Galaxy S24 Ultra 512GB",
-      price: 2650000,
-      image: "https://images.pexels.com/photos/1927130/pexels-photo-1927130.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
-      rating: 4.9,
-      reviews: 89,
-      category: "Утас",
-      description: "Galaxy S24 Ultra нь S Pen-тэй хамт ирдэг хамгийн хүчирхэг Android утас.",
-      features: ["S Pen дэмжлэг", "200MP камер", "AI функцууд", "5000mAh батарей"],
-      specifications: {
-        "Дэлгэц": "6.8 инч Dynamic AMOLED 2X",
-        "Чип": "Snapdragon 8 Gen 3",
-        "Камер": "200MP + 50MP + 12MP + 10MP",
-        "Батарей": "5000mAh"
+
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('is_admin, name, phone, address')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Failed to fetch profile:', error);
+        setIsAdmin(false);
+        setUserData({ name: '', phone: '', address: '' });
+        return;
       }
-    },
-    {
-      id: 3,
-      name: "MacBook Pro 16-inch M3 Max",
-      price: 6890000,
-      originalPrice: 7500000,
-      image: "https://images.pexels.com/photos/1456737/pexels-photo-1456737.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
-      rating: 5.0,
-      reviews: 203,
-      category: "Компьютер",
-      description: "M3 Max чиптэй MacBook Pro нь мэргэжлийн ажилд зориулсан хамгийн хүчирхэг лаптоп.",
-      features: ["M3 Max чип", "Liquid Retina XDR дэлгэц", "22 цаг батарей", "6 спикер"],
-      specifications: {
-        "Чип": "Apple M3 Max",
-        "Дэлгэц": "16.2 инч Liquid Retina XDR",
-        "Санах ой": "36GB unified memory",
-        "Хадгалах сан": "1TB SSD"
-      }
-    },
-    {
-      id: 4,
-      name: "Sony WH-1000XM5 Чихэвч",
-      price: 890000,
-      image: "https://images.pexels.com/photos/1454176/pexels-photo-1454176.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
-      rating: 4.8,
-      reviews: 67,
-      category: "Аудио",
-      description: "Дэлхийн хамгийн сайн дуу чимээ хасагч чихэвч.",
-      features: ["Дуу чимээ хасах", "30 цаг батарей", "Hi-Res Audio", "Мультипойнт холболт"],
-      specifications: {
-        "Драйвер": "30мм",
-        "Батарей": "30 цаг",
-        "Жин": "250г",
-        "Холболт": "Bluetooth 5.2"
-      }
-    },
-    {
-      id: 5,
-      name: "Apple Watch Ultra 2 49mm",
-      price: 1890000,
-      image: "https://images.pexels.com/photos/1464204/pexels-photo-1464204.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
-      rating: 4.9,
-      reviews: 156,
-      category: "Ухаалаг цаг",
-      description: "Хамгийн бат бөх Apple Watch спорт болон адал явдалд зориулагдсан.",
-      features: ["Титан корпус", "36 цаг батарей", "GPS + Cellular", "Усны эсэргүүцэл"],
-      specifications: {
-        "Дэлгэц": "49мм Always-On Retina",
-        "Чип": "S9 SiP",
-        "Батарей": "36 цаг",
-        "Усны эсэргүүцэл": "100м"
-      }
-    },
-    {
-      id: 6,
-      name: "iPad Pro 12.9-inch M2 1TB",
-      price: 3290000,
-      originalPrice: 3650000,
-      image: "https://images.pexels.com/photos/1456735/pexels-photo-1456735.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
-      rating: 4.7,
-      reviews: 93,
-      category: "Таблет",
-      description: "M2 чиптэй iPad Pro нь лаптопын хүчин чадалтай таблет.",
-      features: ["M2 чип", "Liquid Retina XDR", "Apple Pencil дэмжлэг", "5G холболт"],
-      specifications: {
-        "Чип": "Apple M2",
-        "Дэлгэц": "12.9 инч Liquid Retina XDR",
-        "Санах ой": "16GB",
-        "Хадгалах сан": "1TB"
-      }
-    },
-    {
-      id: 7,
-      name: "Nintendo Switch OLED 64GB",
-      price: 890000,
-      image: "https://images.pexels.com/photos/442576/pexels-photo-442576.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
-      rating: 4.8,
-      reviews: 234,
-      category: "Тоглоом",
-      description: "OLED дэлгэцтэй Nintendo Switch нь гэр болон гадаа тоглох боломжтой.",
-      features: ["7 инч OLED дэлгэц", "64GB санах ой", "Гар болон суурин горим", "Joy-Con удирдлага"],
-      specifications: {
-        "Дэлгэц": "7 инч OLED",
-        "Санах ой": "64GB",
-        "Батарей": "4.5-9 цаг",
-        "Жин": "420г"
-      }
-    },
-    {
-      id: 8,
-      name: "Canon EOS R5 Камер",
-      price: 4890000,
-      originalPrice: 5200000,
-      image: "https://images.pexels.com/photos/90946/pexels-photo-90946.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
-      rating: 4.9,
-      reviews: 145,
-      category: "Камер",
-      description: "45MP full-frame мирроргүй камер 8K видео бичлэгтэй.",
-      features: ["45MP сенсор", "8K видео", "Дуал пиксел автофокус", "5-тэнхлэгийн стабилизатор"],
-      specifications: {
-        "Сенсор": "45MP Full-Frame CMOS",
-        "Видео": "8K RAW, 4K 120p",
-        "Автофокус": "1053 цэг",
-        "Батарей": "490 зураг"
-      }
-    },
-    {
-      id: 9,
-      name: "Tesla Model Y Performance",
-      price: 89000000,
-      image: "https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=500&h=500&fit=crop",
-      rating: 5.0,
-      reviews: 89,
-      category: "Автомашин",
-      description: "Цахилгаан SUV хамгийн дээд гүйцэтгэлтэй загвар.",
-      features: ["Dual Motor AWD", "456км зай", "3.5с 0-100км/ц", "Autopilot"],
-      specifications: {
-        "Хүчин чадал": "456км",
-        "Хурдатгал": "3.5с (0-100км/ц)",
-        "Дээд хурд": "250км/ц",
-        "Суудал": "7 хүн"
-      }
+
+      setIsAdmin(Boolean(data?.is_admin));
+      setUserData({
+        name: data?.name ?? '',
+        phone: data?.phone ?? '',
+        address: data?.address ?? ''
+      });
+    };
+
+    fetchProfile();
+  }, [user]);
+
+  const loadProducts = async () => {
+    const { data, error } = await getProducts();
+    if (data && !error) {
+      setProducts(data);
     }
-  ]);
+  };
 
   const handleAddToCart = (product: Product, quantity: number = 1) => {
     setCartItems(prev => {
@@ -230,7 +118,8 @@ function App() {
     setIsCartOpen(true);
   };
 
-  const handleUpdateQuantity = (id: number, quantity: number) => {
+  // Change id type to string to match product IDs
+  const handleUpdateQuantity = (id: string, quantity: number) => {
     if (quantity === 0) {
       handleRemoveItem(id);
       return;
@@ -243,7 +132,7 @@ function App() {
     );
   };
 
-  const handleRemoveItem = (id: number) => {
+  const handleRemoveItem = (id: string) => {
     setCartItems(prev => prev.filter(item => item.id !== id));
   };
 
@@ -269,6 +158,85 @@ function App() {
   const handleBackToHome = () => {
     setSelectedProduct(null);
     setCurrentView('home');
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query.trim()) {
+      setCurrentView('products');
+    }
+  };
+
+  const handleAdminClick = () => {
+    // only allow admin users to go to admin dashboard
+    if (isAdmin) {
+      setCurrentView('admin');
+    } else {
+      // Optionally prompt to login as admin
+      setShowAuthModal(true);
+    }
+  };
+
+  const handleProfileToggle = () => {
+    if (user) {
+      setIsProfileOpen(true);
+    } else {
+      setShowAuthModal(true);
+    }
+  };
+
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Sign out error', err);
+    } finally {
+      // Clear local state
+      setUser(null);
+      setIsAdmin(false);
+      setUserData({ name: '', phone: '', address: '' });
+      setIsProfileOpen(false);
+      setCurrentView('home');
+    }
+  };
+
+  // Create order in Supabase from current cart
+  const handleCreateOrder = async (items: CartItem[]) => {
+    // compute total (integer)
+    const total = items.reduce((s, it) => s + (it.price * it.quantity), 0);
+
+    // ensure user is signed in
+    const sessionResp = await supabase.auth.getSession();
+    const userSession = sessionResp?.data?.session?.user;
+    if (!userSession) {
+      setShowAuthModal(true);
+      return { error: new Error('Not authenticated') };
+    }
+
+    const orderPayload = {
+      user_id: userSession.id,
+      total_amount: total,
+      status: 'pending',
+      items: items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+      created_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('orders')
+      .insert(orderPayload)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Create order error', error);
+      return { error };
+    }
+
+    // clear cart & close panel on success
+    setCartItems([]);
+    setIsCartOpen(false);
+    return { data };
   };
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -305,14 +273,30 @@ function App() {
 
   const renderCurrentView = () => {
     switch (currentView) {
+      case 'admin':
+        // extra guard in case someone tries to navigate directly
+        if (!isAdmin) {
+          // deny access, fallback to home
+          return (
+            <div className="p-6 text-center text-red-500">
+              Access denied — admin only.
+            </div>
+          );
+        }
+        return (
+          <AdminRoute>
+            <AdminDashboard onClose={() => setCurrentView('home')} />
+          </AdminRoute>
+        );
       case 'products':
         return (
           <ProductsPage
             products={products}
-            onAddToCart={handleAddToCart}
+            onAddToCart={(product) => handleAddToCart(product)}
             onProductClick={handleProductClick}
             onAddToWishlist={handleAddToWishlist}
             wishlistItems={wishlistItems}
+            searchQuery={searchQuery}
           />
         );
       case 'wishlist':
@@ -352,6 +336,61 @@ function App() {
     }
   };
 
+  // Save profile updates to Supabase and update local state
+  const handleUpdateUser = async (profile: UserData) => {
+    // update local immediately for optimistic UI
+    setUserData(profile);
+
+    if (!user?.id) {
+      // not signed in — nothing to persist
+      return;
+    }
+
+    const updates = {
+      name: profile.name || null,
+      phone: profile.phone || null,
+      address: profile.address || null,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to update profile:', error);
+      // revert or notify user — for now revert local state to previous (refetch)
+      // refetch profile
+      const { data: fresh, error: err } = await supabase
+        .from('user_profiles')
+        .select('name, phone, address, is_admin')
+        .eq('id', user.id)
+        .single();
+      if (!err && fresh) {
+        setUserData({ name: fresh.name ?? '', phone: fresh.phone ?? '', address: fresh.address ?? '' });
+        setIsAdmin(Boolean(fresh.is_admin));
+      }
+      // optionally surface error to UI — here we console.error
+    } else {
+      // update local with canonical data from DB
+      setUserData({
+        name: data?.name ?? '',
+        phone: data?.phone ?? '',
+        address: data?.address ?? ''
+      });
+      setIsAdmin(Boolean(data?.is_admin));
+    }
+  };
+
+  // Open profile panel and optionally start editing
+  const openProfileForEdit = (startEditing: boolean = false) => {
+    setProfileInitialEditing(startEditing);
+    setIsProfileOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-black">
       <Header 
@@ -359,10 +398,12 @@ function App() {
         wishlistCount={wishlistItems.length}
         onCartToggle={() => setIsCartOpen(!isCartOpen)}
         onWishlistToggle={() => setCurrentView('wishlist')}
-        onProfileToggle={() => setIsProfileOpen(true)}
+        onProfileToggle={handleProfileToggle}
         onHomeClick={() => setCurrentView('home')}
         onProductsClick={() => setCurrentView('products')}
-        onAdminClick={() => setIsAdminOpen(true)}
+        onAdminClick={handleAdminClick}
+        onSearch={handleSearch}
+        isAdmin={isAdmin}
       />
       
       {renderCurrentView()}
@@ -375,6 +416,9 @@ function App() {
         cartItems={cartItems}
         onUpdateQuantity={handleUpdateQuantity}
         onRemoveItem={handleRemoveItem}
+        onCreateOrder={handleCreateOrder}
+        userData={userData}
+        onOpenProfile={openProfileForEdit}
       />
       
       <ProductFilter
@@ -385,18 +429,34 @@ function App() {
       
       <UserProfile
         isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
+        onClose={() => {
+          setIsProfileOpen(false);
+          setProfileInitialEditing(false);
+        }}
         userData={userData}
-        onUpdateUser={setUserData}
+        onUpdateUser={handleUpdateUser}
+        onLogout={handleLogout}
+        initialEditing={profileInitialEditing}
       />
       
-      {isAdminOpen && (
-        <AdminDashboard
-          products={products}
-          onUpdateProducts={setProducts}
-          onClose={() => setIsAdminOpen(false)}
-        />
-      )}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={() => {
+          setShowAuthModal(false);
+          // after successful auth, open profile if now logged in
+          // session change is handled via auth listener which updates `user`
+          // slight delay to allow auth state to propagate
+          setTimeout(() => {
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              // rely on onAuthStateChange to set `user`, open profile if set
+              if (session?.user) {
+                setIsProfileOpen(true);
+              }
+            });
+          }, 100);
+        }}
+      />
     </div>
   );
 }

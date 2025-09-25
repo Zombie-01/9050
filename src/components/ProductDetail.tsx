@@ -1,20 +1,7 @@
 import React, { useState } from 'react';
 import { Star, Heart, ShoppingBag, Minus, Plus, Shield, Truck, Award, ArrowLeft } from 'lucide-react';
 
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  rating: number;
-  reviews: number;
-  category: string;
-  description?: string;
-  features?: string[];
-  specifications?: { [key: string]: string };
-  images?: string[];
-}
+import { Product } from '../lib/supabase';
 
 interface ProductDetailProps {
   product: Product;
@@ -36,7 +23,7 @@ export default function ProductDetail({ product, onAddToCart, onAddToWishlist, o
     }).format(price);
   };
 
-  const productImages = product.images || [product.image, product.image, product.image];
+  const productImages = [product.image_url, product.image_url, product.image_url].filter(Boolean);
 
   const features = product.features || [
     'Дэлхийн стандартын чанар',
@@ -76,26 +63,7 @@ export default function ProductDetail({ product, onAddToCart, onAddToWishlist, o
               />
             </div>
 
-            {/* Thumbnail Images */}
-            <div className="grid grid-cols-3 gap-4">
-              {productImages.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={`aspect-square rounded-xl overflow-hidden border-2 transition-all duration-300 ${
-                    selectedImage === index
-                      ? 'border-gold shadow-lg shadow-gold/25'
-                      : 'border-gray-700 hover:border-gray-600'
-                  }`}
-                >
-                  <img
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
-            </div>
+   
           </div>
 
           {/* Product Info */}
@@ -130,15 +98,15 @@ export default function ProductDetail({ product, onAddToCart, onAddToWishlist, o
             <div className="space-y-2">
               <div className="flex items-baseline space-x-4">
                 <span className="text-4xl font-bold text-gold">{formatPrice(product.price)}</span>
-                {product.originalPrice && (
+                {product.original_price && (
                   <span className="text-xl text-gray-500 line-through">
-                    {formatPrice(product.originalPrice)}
+                    {formatPrice(product.original_price)}
                   </span>
                 )}
               </div>
-              {product.originalPrice && (
+              {product.original_price && (
                 <div className="text-green-400 font-semibold">
-                  {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% хөнгөлөлт хэмнэлээ!
+                  {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% хөнгөлөлт хэмнэлээ!
                 </div>
               )}
             </div>

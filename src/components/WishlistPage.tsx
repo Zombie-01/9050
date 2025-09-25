@@ -1,16 +1,7 @@
 import React from 'react';
 import { Heart, ShoppingBag, X, Star } from 'lucide-react';
 
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  rating: number;
-  reviews: number;
-  category: string;
-}
+import { Product } from '../lib/supabase';
 
 interface WishlistPageProps {
   wishlistItems: Product[];
@@ -82,15 +73,15 @@ export default function WishlistPage({ wishlistItems, onRemoveFromWishlist, onAd
                 {/* Product Image */}
                 <div className="relative aspect-square overflow-hidden">
                   <img
-                    src={product.image}
+                    src={product.image_url || '/placeholder.jpg'}
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                   />
                   
                   {/* Discount Badge */}
-                  {product.originalPrice && (
+                  {product.original_price && (
                     <div className="absolute top-4 left-4 bg-gradient-to-r from-red-600 to-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% ХӨНГӨЛӨЛТ
+                      {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% ХӨНГӨЛӨЛТ
                     </div>
                   )}
 
@@ -138,9 +129,9 @@ export default function WishlistPage({ wishlistItems, onRemoveFromWishlist, onAd
                   <div className="flex items-center justify-between">
                     <div className="flex items-baseline space-x-2">
                       <span className="text-2xl font-bold text-gold">{formatPrice(product.price)}</span>
-                      {product.originalPrice && (
+                      {product.original_price && (
                         <span className="text-sm text-gray-500 line-through">
-                          {formatPrice(product.originalPrice)}
+                          {formatPrice(product.original_price)}
                         </span>
                       )}
                     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Edit3, Save, X } from 'lucide-react';
 
 interface UserData {
@@ -12,11 +12,25 @@ interface UserProfileProps {
   onClose: () => void;
   userData: UserData;
   onUpdateUser: (userData: UserData) => void;
+  onLogout: () => void;
+  initialEditing?: boolean;
 }
 
-export default function UserProfile({ isOpen, onClose, userData, onUpdateUser }: UserProfileProps) {
+export default function UserProfile({ isOpen, onClose, userData, onUpdateUser, onLogout, initialEditing = false }: UserProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<UserData>(userData);
+
+  // sync formData when userData changes
+  useEffect(() => {
+    setFormData(userData);
+  }, [userData]);
+
+  // when opened, optionally start in editing mode
+  useEffect(() => {
+    if (isOpen && initialEditing) {
+      setIsEditing(true);
+    }
+  }, [isOpen, initialEditing]);
 
   const handleSave = () => {
     onUpdateUser(formData);
@@ -137,13 +151,27 @@ export default function UserProfile({ isOpen, onClose, userData, onUpdateUser }:
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="w-full bg-gradient-to-r from-gold to-yellow-500 text-black font-bold py-3 px-6 rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 hover:shadow-lg hover:shadow-gold/25 hover:scale-105"
-              >
-                <Edit3 size={18} />
-                <span>Засах</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="w-full bg-gradient-to-r from-gold to-yellow-500 text-black font-bold py-3 px-6 rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 hover:shadow-lg hover:shadow-gold/25 hover:scale-105"
+                >
+                  <Edit3 size={18} />
+                  <span>Засах</span>
+                </button>
+
+                {/* Logout button */}
+                <button
+                  onClick={() => {
+                    if (confirm('Та системээс гарах гэж байна. Үргэлжлүүлэх үү?')) {
+                      onLogout();
+                    }
+                  }}
+                  className="w-full mt-2 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center space-x-2 transition-all duration-300"
+                >
+                  <span>Гарах</span>
+                </button>
+              </>
             )}
           </div>
 
