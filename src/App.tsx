@@ -47,7 +47,6 @@ function App() {
   useEffect(() => {
     loadProducts();
     
-    // Check auth state
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
