@@ -10,7 +10,6 @@ interface FilterProps {
 export interface FilterState {
   category: string;
   priceRange: [number, number];
-  brand: string;
   rating: number;
   sortBy: string;
 }
@@ -19,32 +18,19 @@ export default function ProductFilter({ onFilterChange, isOpen, onToggle }: Filt
   const [filters, setFilters] = useState<FilterState>({
     category: '',
     priceRange: [0, 10000000],
-    brand: '',
     rating: 0,
     sortBy: 'featured'
   });
 
   const categories = [
     'Бүгд',
-    'Утас',
-    'Компьютер',
-    'Аудио',
-    'Ухаалаг цаг',
-    'Таблет',
-    'Тоглоом',
-    'Камер',
-    'Автомашин'
+    'Гинж',
+    'Бугуйвч',
+    'Бөгж',
+    'Хослол',
   ];
 
-  const brands = [
-    'Бүгд',
-    'Apple',
-    'Samsung',
-    'Sony',
-    'Nintendo',
-    'Canon',
-    'Tesla'
-  ];
+
 
   const sortOptions = [
     { value: 'featured', label: 'Онцлох' },
@@ -64,7 +50,6 @@ export default function ProductFilter({ onFilterChange, isOpen, onToggle }: Filt
     const defaultFilters: FilterState = {
       category: '',
       priceRange: [0, 10000000],
-      brand: '',
       rating: 0,
       sortBy: 'featured'
     };
@@ -131,25 +116,6 @@ export default function ProductFilter({ onFilterChange, isOpen, onToggle }: Filt
             </div>
           </div>
 
-          {/* Brand */}
-          <div>
-            <h3 className="text-lg font-serif text-gold mb-4">Брэнд</h3>
-            <div className="space-y-2">
-              {brands.map(brand => (
-                <button
-                  key={brand}
-                  onClick={() => handleFilterChange('brand', brand === 'Бүгд' ? '' : brand)}
-                  className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-300 ${
-                    (brand === 'Бүгд' && !filters.brand) || filters.brand === brand
-                      ? 'bg-gradient-to-r from-gold to-yellow-500 text-black font-semibold'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }`}
-                >
-                  {brand}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Price Range */}
           <div>

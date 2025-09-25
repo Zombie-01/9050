@@ -28,7 +28,10 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     specifications: {}
   });
 
-  const categories = ['Утас', 'Компьютер', 'Аудио', 'Ухаалаг цаг', 'Таблет', 'Тоглоом', 'Камер', 'Автомашин'];
+  const categories = [  'Гинж',
+    'Бугуйвч',
+    'Бөгж',
+    'Хослол',];
 
   React.useEffect(() => {
     loadProducts();
